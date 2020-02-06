@@ -1,0 +1,11 @@
+->to-do: 
+	select()
+	fctl()
+
+-> no parsing
+-> no fork()
+-> multiplexing b/w tasks:		[ select() ]
+	- accept new connections
+	- recieve data from connections, forward the to outgoing connections
+	- cmd line input from STDIN
+-> manual 'exit' command to stop the proxy server
