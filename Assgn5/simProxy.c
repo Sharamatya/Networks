@@ -14,7 +14,7 @@
 #include <netdb.h>
 #include <errno.h>
 
-const int MAX_SIZE = 100000;
+const int MAX_SIZE = 1024;
 const int MAX_CON = 1000;
 
 #define STDIN 0
@@ -221,36 +221,67 @@ int main(int argc,char *argv[])
 				printf("7\n");
 				char buffer[MAX_SIZE];
 				for( int i = 0; i<MAX_SIZE; i++)buffer[i] = '\0';			// intialize buffer to null
-				int msg_len = read( insti_fd[i], buffer, sizeof(buffer));	// recv from browser i
-				if(msg_len < 0 )
-					perror("Error: Reading failed from institue");
-				printf("11\n");
+				// int msg_len = read( insti_fd[i], buffer, sizeof(buffer));	// recv from browser i
+				int msg_len;
+				// if(msg_len < 0 )
+				// 	perror("Error: Reading failed from institue");
+				// printf("11\n");
+				// if(msg_len==0)
+				// {
+				// 	perror("Empty Message");
+				// 	continue;
+				// }
+				printf("%d %d\n",conn_count, i);
+				msg_len = recv( browser_fd[i], buffer, sizeof(buffer), MSG_DONTWAIT);
+				printf("Bolo AZAADI\n");
+				if(errno == EWOULDBLOCK||errno == EAGAIN)
+				{
+					perror("Recieve ERROR: ");
+					continue;
+				}
 				if(msg_len==0)
 				{
 					perror("Empty Message");
 					continue;
 				}
-				printf("%d %d\n",conn_count, i);
-				// while( msg_len >= 0)
-				// {
+				if(msg_len < 0 )
+					perror("Error: Reading failed from institue");
+
+				while( msg_len >= 0)
+				{
 					
-				// 	// send to inti server i 
+					// send to inti server i 
 					
-				// 	// for( int i = 0; i<MAX_SIZE; i++)buffer[i] = '\0';			// intialize buffer to null
-				// 	if(msg_len == 0 )
-				// 	{											// if connection closed
-				// 		printf("conneciton Closed on browser : %d\n", i);
-				// 		break;
-				// 	}
+					// for( int i = 0; i<MAX_SIZE; i++)buffer[i] = '\0';			// intialize buffer to null
+					if(msg_len == 0 )
+					{											// if connection closed
+						printf("conneciton Closed on browser : %d\n", i);
+						break;
+					}
+					send( browser_fd[i], buffer, msg_len, 0);
+					if(errno == EPIPE)
+						continue;
+					for( int i = 0; i<MAX_SIZE; i++)buffer[i] = '\0';			// intialize buffer to null
 
-				// 	for( int i = 0; i<MAX_SIZE; i++)buffer[i] = '\0';			// intialize buffer to null
+					msg_len = recv( browser_fd[i], buffer, sizeof(buffer), 0);
+					if(errno == EWOULDBLOCK||errno == EAGAIN)
+					{
+						perror("Recieve ERROR: ");
+						break;
+					}
+					if(msg_len==0)
+					{
+						perror("Empty Message");
+						break;
+					}
+					if(msg_len < 0 )
+						perror("Error: Reading failed from institue");
 
-				// 	msg_len = recv( browser_fd[i], buffer, sizeof(buffer), 0);
-				// }
+				}
 
-				send( browser_fd[i], buffer, msg_len, 0);
-				if(errno == EPIPE)
-					continue;
+				// send( browser_fd[i], buffer, msg_len, 0);
+				// if(errno == EPIPE)
+				// 	continue;
 				printf("6\n");
 			}
 
