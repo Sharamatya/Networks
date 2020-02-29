@@ -216,6 +216,7 @@ int main(int argc,char *argv[])
 		if(FD_ISSET(tcp_socket_fd, &fd_read) && conn_count < MAX_CON)
 		{
 			clilen = sizeof(client_addr);
+			printf("Hollaa!!\n");
 			browser_fd[conn_count] = accept( tcp_socket_fd, (struct sockaddr *)&client_addr, &clilen );
 			if( browser_fd[ conn_count] == -1 )
 			{		
@@ -241,7 +242,7 @@ int main(int argc,char *argv[])
 			//har* request,int* method_type, struct hostent* ip,int* port, char* charip
 			if(method_type[conn_count]!=CONNECT)
 				continue;
-			printf("Port:%d length:%d \n",port,ip.h_length);
+			// printf("Port:%d length:%d \n",port,ip.h_length);
 
 			// char *charip = ip.h_addr_list[0];
 			// char charip[2] ;
