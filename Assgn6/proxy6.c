@@ -16,10 +16,14 @@
 #include <sys/wait.h>
 #include <netdb.h>
 #include <errno.h>
+#define RESET 0
+#define CONNECT 1
+#define GET 2
+#define POST 3
+#define SELF 4
 
 const int MAX_SIZE = 100000;
 const int MAX_CON = 1000;
-
 #define STDIN 0
 
 void error( char *msg ){
@@ -37,7 +41,7 @@ int max(int a, int b){
 
 
 // fsm to the http header
-void parse(char* request,int* method_type, struct hostent* ip,int* port)
+void parminder(char* request,int* method_type, struct hostent* ip,int* port, char* charip)
 {
 	// states_type = 
 	// 		0 : RESET
@@ -77,17 +81,32 @@ void parse(char* request,int* method_type, struct hostent* ip,int* port)
 	}
 	else if( (method = strstr(request, "\r\n\r\n")) != NULL )*method_type=0;
 	else *method_type = 4;
-	char hostip[100], hostport[20];
-	// struct hostent* ip;
-	printf("hostip_size: %d Method: %d hostport_size:%d\n",hostip_size,*method_type,hostport_size);
-	if( strncpy( hostip, host_ip, hostip_size) == NULL) perror("ERROR IN STRING CPY OPERATION 1"); 
-	if( strncpy( hostport, host_port, hostport_size) == NULL) perror("ERROR IN STRING CPY OPERATION 2"); 
-	hostip[hostip_size]='\0';
-	hostport[hostport_size]='\0';
-	printf("hostip:%s  hostport:%s \n",hostip,hostport);
-	if( (ip = gethostbyname(hostip) ) == NULL) perror("ERROR IN GETTING IP"); 
 
-	*port = atoi(hostport);
+	if(*method_type == 1)
+	{
+		char hostip[100], hostport[20];
+		// struct hostent* ip;
+		printf("hostip_size: %d Method: %d hostport_size:%d\n",hostip_size,*method_type,hostport_size);
+		if( strncpy( hostip, host_ip, hostip_size) == NULL) perror("ERROR IN STRING CPY OPERATION 1"); 
+		if( strncpy( hostport, host_port, hostport_size) == NULL) perror("ERROR IN STRING CPY OPERATION 2"); 
+		hostip[hostip_size]='\0';
+		hostport[hostport_size]='\0';
+		printf("hostip:%s  hostport:%s \n",hostip,hostport);
+		if( (ip = gethostbyname(hostip) ) == NULL) perror("ERROR IN GETTING IP"); 
+
+		*port = atoi(hostport);
+
+		// char *charip = ip->h_addr_list[0];
+		char *charip1;
+		charip1 = inet_ntoa(*((struct in_addr*) ip->h_addr_list[0])); 
+
+		if(!(charip1))exit(1);
+		printf("sent IP %s\n",charip1);
+
+		strcpy(charip, charip1);
+		// return charip;
+		// printf("Parse IP:%s \n Port: %d \n",charip,*port);
+	}
 }
 
 
@@ -217,11 +236,16 @@ int main(int argc,char *argv[])
 			
 			struct hostent ip;
 			int port;
-			parse(buffer, &(method_type[conn_count]), &ip, &port);
+			char charip[MAX_SIZE];
+			parminder(buffer, &(method_type[conn_count]), &ip, &port, charip);
+			//har* request,int* method_type, struct hostent* ip,int* port, char* charip
+			if(method_type[conn_count]!=CONNECT)
+				continue;
 			printf("Port:%d length:%d \n",port,ip.h_length);
 
-			char *charip = ip.h_addr_list[0];
-			printf("IP:%s  Port:%d \n",charip,port);
+			// char *charip = ip.h_addr_list[0];
+			// char charip[2] ;
+			// printf("IP:%s  Port:%d \n",charip,port);
 			if (inet_pton(AF_INET, charip, &intiserver.sin_addr.s_addr) <= 0)
 		    {
 		        perror("Invalid proxy server address\n");
@@ -249,16 +273,39 @@ int main(int argc,char *argv[])
 		    {
 		        perror("Setsockopt failure for socket in\n");
 		    }
-
+		    printf("1\n");
 			if(connect( insti_fd[conn_count], (struct sockaddr *)&intiserver, sizeof(intiserver) )<0 && errno != EINPROGRESS)
 				perror("INSTI SERVER CONNECTION FAILED");
 			conn_count++;
+			printf("Succesfully  connected to ip: %s, port : %d \n", charip, port);
 
 		}
 
 		for( int i = 0; i< conn_count ; i++)
 		{ 
 			 // iterate over already establised connecitons	
+			
+
+			if(FD_ISSET(browser_fd[i], &fd_send)&&FD_ISSET(insti_fd[i],&fd_read))
+			{
+				
+
+				char buffer[MAX_SIZE];
+				for( int i = 0; i<MAX_SIZE; i++)buffer[i] = '\0';			// intialize buffer to null
+				int msg_len = read( insti_fd[i], buffer, sizeof(buffer));	// recv from browser i
+				if(msg_len < 0 )
+					perror("Error: Reading failed from institue");
+				if(msg_len==0)
+				{
+					perror("Empty Message ");
+					continue;
+				}
+				printf("sending from server %d ,to  client : %d\n", i, i);
+				printf("%s \n",buffer);
+				send( browser_fd[i], buffer, msg_len, 0);
+				if(errno == EPIPE)
+					continue;
+			}
 			if(FD_ISSET(browser_fd[i], &fd_read)&&FD_ISSET(insti_fd[i],&fd_send))
 			{
 				// recv from browser i
@@ -269,34 +316,17 @@ int main(int argc,char *argv[])
 					perror("Error: Reading failed from browser");
 				if(msg_len==0)
 				{
-					// perror("Empty Message");
+					perror("Empty Message");
 					continue;
 				}
+				printf("%s \n",buffer);
+   			 	printf("sending from client %d ,to  server : %d\n", i, i);
 
 				send( insti_fd[i], buffer, msg_len, 0);				// send to inti connection
 				if(errno == EPIPE)
 					continue;
 			}
-
-			if(FD_ISSET(browser_fd[i], &fd_send)&&FD_ISSET(insti_fd[i],&fd_read))
-			{
-				char buffer[MAX_SIZE];
-				for( int i = 0; i<MAX_SIZE; i++)buffer[i] = '\0';			// intialize buffer to null
-				int msg_len = read( insti_fd[i], buffer, sizeof(buffer));	// recv from browser i
-				if(msg_len < 0 )
-					perror("Error: Reading failed from institue");
-				if(msg_len==0)
-				{
-					// perror("Empty Message");
-					continue;
-				}
-				send( browser_fd[i], buffer, msg_len, 0);
-				if(errno == EPIPE)
-					continue;
-			}
-
 		}
 	}
 }
-
 
