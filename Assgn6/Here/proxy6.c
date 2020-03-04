@@ -37,7 +37,7 @@ int max(int a, int b){
 
 
 // fsm to the http header
-void parsr(char* request,int* method_type, struct hostent* ip,int* port, char* charip)
+int parsr(char* request,int* method_type, struct hostent* ip,int* port, char* charip)
 {
 	// states_type = 
 	// 		0 : RESET
@@ -50,20 +50,12 @@ void parsr(char* request,int* method_type, struct hostent* ip,int* port, char* c
 	char* host_port;
 	char* method;
 	// GET THE METHOD
-	if( (method = strstr(request, "CONNECT")) != NULL )
-	{
-		*method_type = 1;						// 0=GET, 1=POST
-		while(*(method)!= ' ') method+=1;		// get to the method value
-		method++;								// ptr to method value
-		host_ip = method;
-		while( *(method+hostip_size)!= ':')hostip_size++;			// get the host value size
-		host_port = host_ip + hostip_size + 1;
-		while( host_port[hostport_size]!= '\n' && host_port[hostport_size]!= '\r' && host_port[hostport_size]!= ' ') 
-		{
-			hostport_size++;			// get the host port size
-		}
-	}
-	else if( (method = strstr(request, "POST")) != NULL )
+	// if( (method = strstr(request, "CONNECT")) != NULL )
+	// {
+	// 	*method_type = 1;						// 0=GET, 1=POST
+		
+	// }
+	if( (method = strstr(request, "POST")) != NULL )
 	{
 		*method_type = 3;						// 0=GET, 1=POST
 		while(*(method)!= ' ') method+=1;		// get to the method value
@@ -75,11 +67,27 @@ void parsr(char* request,int* method_type, struct hostent* ip,int* port, char* c
 		while(*(method)!= ' ') method+=1;		// get to the method value
 
 	}
-	else if( (method = strstr(request, "\r\n\r\n")) != NULL )*method_type=0;
-	else *method_type = 4;
-
-	if(*method_type == 1)
+	// else if( (method = strstr(request, "\r\n\r\n")) != NULL )*method_type=0;
+	else 
 	{
+		*method_type = 3;
+		return -1;
+	}
+	if( (method = strstr(request, "Host")) == NULL )
+		return -1;
+	while(*(method)!= ' ') 
+		method+=1;		// get to the method value
+	method++;								// ptr to method value
+	host_ip = method;
+	while( *(method+hostip_size)!= ':')
+		hostip_size++;			// get the host value size
+	if(*method_type == GET)
+	{
+		host_port = host_ip + hostip_size + 1;
+		while( host_port[hostport_size]!= '\n' && host_port[hostport_size]!= '\r' && host_port[hostport_size]!= ' ') 
+		{
+			hostport_size++;			// get the host port size
+		}
 		char hostip[100], hostport[20];
 		struct hostent* ip;
 		printf("hostip_size: %d Method: %d hostport_size:%d\n",hostip_size,*method_type,hostport_size);
@@ -100,11 +108,26 @@ void parsr(char* request,int* method_type, struct hostent* ip,int* port, char* c
 		// printf("sent IP %s\n",charip1);
 
 		strcpy(charip, charip1);
-		// return charip;
-		// printf("Parse IP:%s \n Port: %d \n",charip,*port);
 	}
+	else
+	{
+		char hostip[100];
+		struct hostent* ip;
+		printf("hostip_size: %d Method: %d hostport_size:%d\n",hostip_size,*method_type,hostport_size);
+		if( strncpy( hostip, host_ip, hostip_size) == NULL) perror("ERROR IN STRING CPY OPERATION 1"); 
+		hostip[hostip_size]='\0';
+		// printf("hostip:%s  hostport:%s \n",hostip,hostport);
+		if( (ip = gethostbyname(hostip) ) == NULL) perror("ERROR IN GETTING IP"); 
+		*port = 8080;
+		// char *charip = ip->h_addr_list[0];
+		char *charip1;
+		charip1 = inet_ntoa(*((struct in_addr*) ip->h_addr_list[0])); 
+		if(!(charip1))exit(1);
+		// printf("sent IP %s\n",charip1);
+		strcpy(charip, charip1);
+	}
+	return 0;
 }
-
 
 int main(int argc,char *argv[])
 {
