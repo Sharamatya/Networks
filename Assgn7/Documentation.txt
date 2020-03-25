@@ -1,0 +1,75 @@
+---------- Table of Re-Transmissions ----------
+	 p				#Retransmision 			#Average Retransmissions
+	.05					2							.037735
+	.10					9 							.169811
+	.15					21							.396226
+	.20 				27 							.509433
+	.25 				35							.660377
+	.30					47							.886792
+	.35					55							1.03773
+	.40					80							1.50943
+	.45					108							2.03773
+	.50					127							2.39622
+
+	Input String : " abcdefghijklmnopqrstuvwxyz1abcdefghijklmnopqrstuvwxyz "
+
+		
+---------- Messages and Formats ----------
+
+All Messages transmitted/re-transmitted have the given format :
+
+|-----------------------------------------------------|
+|<-messgae body-><-space-><-message_sequence_number-> |
+|-----------------------------------------------------|
+
+For concatinating sequence number at the end of the message body we use the function in rsocket.c : size_t concatSeqNum(int seq_number, char *buffer, int len);
+
+Advantages: 
+-> To detect duplicate messages
+-> To get the order of messages. i.e. since the order is not maintained while packets are being sent from sender side, messages ids can be used to order the packets recieved on the client side.
+-> To uniquely identify a message for sending acknowledgements
+
+Uses:
+-> Remove duplicates
+-> Could be used for ordered delivery to the application level
+
+---------- Data Structures ----------
+
+1) (struct send_buffer_item*) send_buffer  :-
+	    -> int seq_number := to store the sequence nuumber of the message sent;
+	    -> char buffer[MSG_SIZE] := to store the message body;
+	    -> size_t len := to store the message length;
+	    -> struct sockaddr_in destination_address := to store the destination IP:Port;
+	    -> socklen_t address_length := to store the destination socket address structure's size;
+	    -> int flags := flags for sending the message;
+	    -> int socket_fd := socket file descriptor for the send message;
+
+	    Use : Contains the application messages that need to be sent
+
+2) (struct unacknowledged_message_entry*) unacknowledged_message_table  :-
+	   -> int seq_number := to store the sequence nuumber of the message unacknowledged
+	   -> char msg[MSG_SIZE] := to store the message body;
+	   -> size_t msg_len := to store the message length;
+	   -> time_t time := stores the time at which the message was last transmitted;
+	   -> int flags := flags for sending the message;
+	   -> struct sockaddr_in destination_address;
+	   -> socklen_t address_length := to store the destination socket address structure's size;
+	   -> int num_retransmit := stores number of restransmissions after close is called;
+
+	   Use : Contains the details of all messages that have been sent but not yet 
+			acknowledged by the receiver, along with the last sending time of the message.
+			used to decide which messages need to be retransmitted if no acknowledgement is received. 
+
+3) (struct recieve_buffer_item *) recieve_buffer  :-
+	   -> char buffer[MSG_SIZE] := to store the message body;
+	   -> struct sockaddr_in source_address := to store the source IP:Port;
+
+	   Use : Contains the application messages that are received
+
+
+4) (struct recieved_messgae_id*) recieved_messgae_id_table  :-
+  	 	-> int seq_number:= to store the sequence nuumber of the message recieved;
+	    -> struct sockaddr_in source_addr := to store the source IP:Port;
+	    -> socklen_t address_length := to store the source socket address structure's size;
+
+	    Use : contains all distinct messages that are received in the socket so far and used to detect duplicate messages

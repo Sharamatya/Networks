@@ -30,6 +30,7 @@ typedef struct
     int flags;
     struct sockaddr_in destination_address;
     socklen_t address_length;
+    int num_retransmit;
 }unacknowledged_message_entry;
 unacknowledged_message_entry * unacknowledged_message_table;
 
@@ -99,6 +100,7 @@ int r_socket(int domain, int type, int protocol)
     for (int i = 0; i < TABLE_SIZE; i++)
     {
         unacknowledged_message_table[i].seq_number = -1;
+        unacknowledged_message_table[i].num_retransmit = 10;
         send_buffer[i].seq_number = -1;
         recieved_messgae_id_table[i].seq_number = -1;
     }
@@ -357,8 +359,11 @@ int r_close(int sockfd)
         flag = 0;
         for (int i = 0; i < TABLE_SIZE; i++)
         {
-            if (unacknowledged_message_table[i].seq_number != -1 || send_buffer[i].seq_number != -1)
+            if ((unacknowledged_message_table[i].seq_number != -1 && unacknowledged_message_table[i].num_retransmit  >=0 ) || (send_buffer[i].seq_number != -1))
+            {
+                // unacknowledged_message_table[i].num_retransmit--;
                 flag = 1;
+            }
         }
 
     }
@@ -377,6 +382,12 @@ int r_close(int sockfd)
     free(unacknowledged_message_table);
     free(recieved_messgae_id_table);
     free(recieve_buffer);
+
+    struct itimerval it_val;
+    it_val.it_value.tv_sec = 0;
+    it_val.it_value.tv_usec = 0;  
+    it_val.it_interval = it_val.it_value;
+    setitimer(ITIMER_REAL, &it_val, NULL);
 
     return close(sockfd);
 }
