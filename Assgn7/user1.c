@@ -5,7 +5,7 @@
 #include "rsocket.h"
 
 #define MAXLINE 100 
-#define ROLLNO 10053
+#define ROLLNO 10012
 
 struct sockaddr_in m2_addr; 
 socklen_t len; 
